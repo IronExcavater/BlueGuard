@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "BlueShield (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "BlueShield (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}

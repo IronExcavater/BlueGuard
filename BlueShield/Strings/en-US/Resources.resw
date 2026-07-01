@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter</value>
+  </resheader>
+
+  <!-- App -->
+  <data name="AppName" xml:space="preserve">
+    <value>BlueShield</value>
+  </data>
+
+  <!-- Tray menu items -->
+  <data name="TrayMenuProtection" xml:space="preserve">
+    <value>Protection</value>
+  </data>
+  <data name="TrayMenuStartup" xml:space="preserve">
+    <value>Open at boot</value>
+  </data>
+  <data name="TrayMenuExit" xml:space="preserve">
+    <value>Exit</value>
+  </data>
+
+  <!-- Notifications: Bluetooth protection restored -->
+  <data name="NotificationRestoredBody" xml:space="preserve">
+    <value>Bluetooth was turned off and automatically restored.</value>
+  </data>
+  <data name="NotificationRestoredBodyFailed" xml:space="preserve">
+    <value>Bluetooth was turned off and couldn't be restored automatically.</value>
+  </data>
+  <data name="NotificationRestoredActionTurnOff" xml:space="preserve">
+    <value>Turn Off Anyway</value>
+  </data>
+</root>

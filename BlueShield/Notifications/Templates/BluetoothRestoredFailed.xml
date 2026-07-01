@@ -1,0 +1,11 @@
+<toast launch="app" activationType="foreground">
+  <visual>
+    <binding template="ToastGeneric">
+      <text>ms-resource:AppName</text>
+      <text>ms-resource:NotificationRestoredBodyFailed</text>
+      <image placement="appLogoOverride"
+             src="ms-appx:///Assets/Square44x44Logo.scale-200.png"
+             hint-crop="circle"/>
+    </binding>
+  </visual>
+</toast>

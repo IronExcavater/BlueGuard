@@ -12,7 +12,11 @@ jobs:
     runs-on: windows-latest
     strategy:
       matrix:
-        platform: [x64, arm64]
+        include:
+          - rid: x64
+            msbuildPlatform: x64
+          - rid: arm64
+            msbuildPlatform: ARM64
 
     steps:
       - uses: actions/checkout@v4
@@ -24,7 +28,8 @@ jobs:
       - name: Restore
         run: >
           dotnet restore BlueGuard/BlueGuard.csproj
-          -r win-${{ matrix.platform }}
+          -r win-${{ matrix.rid }}
+          -p:Platform=${{ matrix.msbuildPlatform }}
           -p:Configuration=Release
           -p:PublishReadyToRun=false
           -p:PublishTrimmed=false
@@ -32,7 +37,8 @@ jobs:
       - name: Build
         run: >
           dotnet build BlueGuard/BlueGuard.csproj
-          -r win-${{ matrix.platform }}
+          -r win-${{ matrix.rid }}
+          -p:Platform=${{ matrix.msbuildPlatform }}
           -c Release
           --no-restore
           -p:PublishReadyToRun=false
@@ -42,7 +48,8 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         run: >
           dotnet publish BlueGuard/BlueGuard.csproj
-          -r win-${{ matrix.platform }}
+          -r win-${{ matrix.rid }}
+          -p:Platform=${{ matrix.msbuildPlatform }}
           -c Release
           --self-contained true
           -p:GenerateAppxPackageOnBuild=true
@@ -52,7 +59,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         uses: actions/upload-artifact@v4
         with:
-          name: BlueGuard-${{ matrix.platform }}
+          name: BlueGuard-${{ matrix.rid }}
           path: '**/*.msix'
           if-no-files-found: error
 

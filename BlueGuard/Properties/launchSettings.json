@@ -1,9 +1,9 @@
 {
   "profiles": {
-    "BlueShield (Package)": {
+    "BlueGuard (Package)": {
       "commandName": "MsixPackage"
     },
-    "BlueShield (Unpackaged)": {
+    "BlueGuard (Unpackaged)": {
       "commandName": "Project"
     }
   }

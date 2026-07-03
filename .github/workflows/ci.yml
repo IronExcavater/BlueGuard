@@ -54,7 +54,6 @@ jobs:
           --self-contained true
           -p:GenerateAppxPackageOnBuild=true
           -p:AppxPackageSigningEnabled=false
-          -p:PublishTrimmed=false
 
       - name: Upload MSIX
         if: startsWith(github.ref, 'refs/tags/v')

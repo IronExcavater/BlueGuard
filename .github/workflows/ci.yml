@@ -84,7 +84,7 @@ jobs:
         run: |
           shopt -s globstar
           gh release create ${{ github.ref_name }} \
-            msix/**/*.msix \
+            msix/**/BlueGuard_*.msix \
             --repo ${{ github.repository }} \
             --title ${{ github.ref_name }} \
             --generate-notes \

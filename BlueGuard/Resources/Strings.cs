@@ -18,6 +18,7 @@ internal static class Strings
     internal static string TrayMenuProtection => Loader.GetString(nameof(TrayMenuProtection));
     internal static string TrayMenuStartup => Loader.GetString(nameof(TrayMenuStartup));
     internal static string TrayMenuExit => Loader.GetString(nameof(TrayMenuExit));
+    internal static string TrayMenuSettings => Loader.GetString(nameof(TrayMenuSettings));
     internal static string TrayMenuReopenAfterToggle => Loader.GetString(nameof(TrayMenuReopenAfterToggle));
 
     internal static string NotificationRestoredBody => Loader.GetString(nameof(NotificationRestoredBody));

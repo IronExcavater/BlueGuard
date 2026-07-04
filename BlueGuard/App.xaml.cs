@@ -47,8 +47,8 @@ public partial class App : Application
         _tray.ReopenAfterToggle.Toggled += (_, enabled) => _settings.ReopenAfterToggle = enabled;
         _tray.ExitRequested += OnExitRequested;
 
-        _tray.Startup.IsEnabled = await _startup.IsEnabledAsync();
-        _tray.ReopenAfterToggle.IsEnabled = _settings.ReopenAfterToggle;
+        _tray.Startup.IsChecked = await _startup.IsEnabledAsync();
+        _tray.ReopenAfterToggle.IsChecked = _settings.ReopenAfterToggle;
         _tray.SetProtectionEnabled(_settings.ProtectionEnabled);
         _tray.Create();
 
@@ -66,7 +66,7 @@ public partial class App : Application
     private async void OnStartupToggled(object? sender, bool enabled)
     {
         if (!await _startup.SetEnabledAsync(enabled))
-            _tray.Startup.IsEnabled = !enabled;
+            _tray.Startup.IsChecked = !enabled;
         else
             _settings.LaunchAtStartup = enabled;
     }

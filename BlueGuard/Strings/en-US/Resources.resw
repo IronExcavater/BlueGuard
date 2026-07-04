@@ -28,8 +28,11 @@
   <data name="TrayMenuExit" xml:space="preserve">
     <value>Exit</value>
   </data>
+  <data name="TrayMenuSettings" xml:space="preserve">
+    <value>Settings</value>
+  </data>
   <data name="TrayMenuReopenAfterToggle" xml:space="preserve">
-    <value>Reopen menu after toggle</value>
+    <value>Reopen after toggle</value>
   </data>
 
   <!-- Notifications: Bluetooth protection restored -->

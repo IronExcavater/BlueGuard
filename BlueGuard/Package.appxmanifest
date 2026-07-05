@@ -7,7 +7,7 @@
   xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
   IgnorableNamespaces="uap rescap desktop">
 
-  <!-- Version is a placeholder — CI overwrites it from the release git tag (vX.X.X.X) before packaging. -->
+  <!-- Version is a placeholder — CI derives the real one from the release tag (vX.X.X.X). -->
   <Identity
     Name="NiclasRogulski.BlueGuard"
     Publisher="CN=895C1464-648C-4CEE-884F-72A4522F73D3"

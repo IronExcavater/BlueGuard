@@ -23,9 +23,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # The manifest's checked-in Version is a placeholder (0.0.0.0) — for a tagged
-      # release, this is the single source of truth that drives both the MSIX package
-      # identity and the exe's own file version, so tag and package can't drift apart.
+      # Manifest Version is just a placeholder — derive the real one from the tag.
       - name: Set package version from tag
         if: startsWith(github.ref, 'refs/tags/v')
         shell: pwsh

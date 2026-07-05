@@ -29,8 +29,10 @@ jobs:
       - name: Set package version from tag
         if: startsWith(github.ref, 'refs/tags/v')
         shell: pwsh
+        env:
+          TAG_NAME: ${{ github.ref_name }}
         run: |
-          $tag = "${{ github.ref_name }}"
+          $tag = $env:TAG_NAME
           if ($tag -notmatch '^v(\d+\.\d+\.\d+\.\d+)$') {
             Write-Error "Tag '$tag' must look like vMAJOR.MINOR.BUILD.REVISION (e.g. v1.2.0.0) to become the MSIX package version."
             exit 1
@@ -107,11 +109,13 @@ jobs:
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
         run: |
           shopt -s globstar
-          gh release create ${{ github.ref_name }} \
+          gh release create "$TAG_NAME" \
             msix/**/BlueGuard_*.msix \
-            --repo ${{ github.repository }} \
-            --title ${{ github.ref_name }} \
+            --repo "$REPO" \
+            --title "$TAG_NAME" \
             --generate-notes \
             --notes "Unsigned MSIX packages, attached for reference/archival only — Windows requires MSIX packages to be signed before they can be installed, and these are not. BlueGuard is distributed through the Microsoft Store; submit these packages via Partner Center rather than installing directly."

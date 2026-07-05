@@ -10,6 +10,8 @@ on:
 jobs:
   build:
     runs-on: windows-latest
+    env:
+      PACKAGE_VERSION: ""
     strategy:
       matrix:
         include:
@@ -20,6 +22,29 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      # The manifest's checked-in Version is a placeholder (0.0.0.0) — for a tagged
+      # release, this is the single source of truth that drives both the MSIX package
+      # identity and the exe's own file version, so tag and package can't drift apart.
+      - name: Set package version from tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          if ($tag -notmatch '^v(\d+\.\d+\.\d+\.\d+)$') {
+            Write-Error "Tag '$tag' must look like vMAJOR.MINOR.BUILD.REVISION (e.g. v1.2.0.0) to become the MSIX package version."
+            exit 1
+          }
+          $version = $Matches[1]
+
+          $manifestPath = "BlueGuard/Package.appxmanifest"
+          [xml]$manifest = Get-Content $manifestPath
+          $ns = New-Object System.Xml.XmlNamespaceManager($manifest.NameTable)
+          $ns.AddNamespace("n", "http://schemas.microsoft.com/appx/manifest/foundation/windows10")
+          $manifest.SelectSingleNode("//n:Identity", $ns).SetAttribute("Version", $version)
+          $manifest.Save((Resolve-Path $manifestPath))
+
+          echo "PACKAGE_VERSION=$version" >> $env:GITHUB_ENV
 
       - uses: actions/setup-dotnet@v4
         with:
@@ -54,6 +79,7 @@ jobs:
           --self-contained true
           -p:GenerateAppxPackageOnBuild=true
           -p:AppxPackageSigningEnabled=false
+          -p:Version=${{ env.PACKAGE_VERSION }}
 
       - name: Upload MSIX
         if: startsWith(github.ref, 'refs/tags/v')

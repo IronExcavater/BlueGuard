@@ -3,117 +3,121 @@ name: CI
 on:
   push:
     branches: [main]
-    tags: ['v*']
+    tags: ["v*"]
   pull_request:
     branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  PROJECT: BlueGuard/BlueGuard.csproj
+  MANIFEST: BlueGuard/Package.appxmanifest
 
 jobs:
   build:
     runs-on: windows-latest
-    env:
-      PACKAGE_VERSION: ""
     strategy:
       matrix:
-        include:
-          - rid: x64
-            msbuildPlatform: x64
-          - rid: arm64
-            msbuildPlatform: ARM64
+        architecture: [x64, ARM64]
 
     steps:
       - uses: actions/checkout@v4
 
-      # Manifest Version is just a placeholder — derive the real one from the tag.
-      - name: Set package version from tag
-        if: startsWith(github.ref, 'refs/tags/v')
-        shell: pwsh
-        env:
-          TAG_NAME: ${{ github.ref_name }}
-        run: |
-          $tag = $env:TAG_NAME
-          if ($tag -notmatch '^v(\d+\.\d+\.\d+\.\d+)$') {
-            Write-Error "Tag '$tag' must look like vMAJOR.MINOR.BUILD.REVISION to become the MSIX package version."
-            exit 1
-          }
-          $version = $Matches[1]
-
-          $manifestPath = "BlueGuard/Package.appxmanifest"
-          [xml]$manifest = Get-Content $manifestPath
-          $ns = New-Object System.Xml.XmlNamespaceManager($manifest.NameTable)
-          $ns.AddNamespace("n", "http://schemas.microsoft.com/appx/manifest/foundation/windows10")
-          $manifest.SelectSingleNode("//n:Identity", $ns).SetAttribute("Version", $version)
-          $manifest.Save((Resolve-Path $manifestPath))
-
-          echo "PACKAGE_VERSION=$version" >> $env:GITHUB_ENV
-
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '10.x'
+          dotnet-version: 10.x
 
-      - name: Restore
+      - name: Build ${{ matrix.architecture }}
         run: >
-          dotnet restore BlueGuard/BlueGuard.csproj
-          -r win-${{ matrix.rid }}
-          -p:Platform=${{ matrix.msbuildPlatform }}
-          -p:Configuration=Release
+          dotnet build ${{ env.PROJECT }}
+          --configuration Release
+          --runtime win-${{ matrix.architecture == 'ARM64' && 'arm64' || 'x64' }}
+          -p:Platform=${{ matrix.architecture }}
           -p:PublishReadyToRun=false
           -p:PublishTrimmed=false
-
-      - name: Build
-        run: >
-          dotnet build BlueGuard/BlueGuard.csproj
-          -r win-${{ matrix.rid }}
-          -p:Platform=${{ matrix.msbuildPlatform }}
-          -c Release
-          --no-restore
-          -p:PublishReadyToRun=false
-          -p:PublishTrimmed=false
-
-      - name: Publish MSIX
-        if: startsWith(github.ref, 'refs/tags/v')
-        run: >
-          dotnet publish BlueGuard/BlueGuard.csproj
-          -r win-${{ matrix.rid }}
-          -p:Platform=${{ matrix.msbuildPlatform }}
-          -c Release
-          --self-contained true
-          -p:GenerateAppxPackageOnBuild=true
-          -p:AppxPackageSigningEnabled=false
-          -p:Version=${{ env.PACKAGE_VERSION }}
-
-      - name: Upload MSIX
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: actions/upload-artifact@v4
-        with:
-          name: BlueGuard-${{ matrix.rid }}
-          path: '**/*.msix'
-          if-no-files-found: error
 
   release:
-    needs: build
     if: startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-latest
+    needs: build
+    runs-on: windows-latest
+    environment: release
     permissions:
       contents: write
 
     steps:
-      - name: Download MSIX artifacts
-        uses: actions/download-artifact@v4
-        with:
-          pattern: BlueGuard-*
-          merge-multiple: true
-          path: msix
+      - uses: actions/checkout@v4
 
-      - name: Create GitHub Release
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.x
+
+      - name: Set version
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}".TrimStart("v")
+          if ($version -notmatch '^\d+\.\d+\.\d+\.\d+$') {
+            throw "Release tags must look like v1.0.2.0"
+          }
+
+          [xml] $manifest = Get-Content $env:MANIFEST
+          $manifest.Package.Identity.Version = $version
+          $manifest.Save((Resolve-Path $env:MANIFEST))
+
+      - name: Prepare signing certificate
+        shell: pwsh
+        env:
+          PFX_BASE64: ${{ secrets.WINDOWS_SIGNING_PFX_BASE64 }}
+          PFX_PASSWORD: ${{ secrets.WINDOWS_SIGNING_PFX_PASSWORD }}
+        run: |
+          New-Item artifacts -ItemType Directory | Out-Null
+
+          $pfx = "$env:RUNNER_TEMP\BlueGuard.pfx"
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:PFX_BASE64))
+
+          $certificate = Get-PfxCertificate `
+            -FilePath $pfx `
+            -Password (ConvertTo-SecureString $env:PFX_PASSWORD -AsPlainText -Force)
+
+          Export-Certificate -Cert $certificate -FilePath artifacts/BlueGuard.cer | Out-Null
+          "PFX_PATH=$pfx" >> $env:GITHUB_ENV
+
+      - name: Package
+        shell: pwsh
+        env:
+          PFX_PASSWORD: ${{ secrets.WINDOWS_SIGNING_PFX_PASSWORD }}
+        run: |
+          $version = "${{ github.ref_name }}".TrimStart("v")
+
+          foreach ($target in @(
+            @{ Architecture = "x64"; Runtime = "x64" },
+            @{ Architecture = "ARM64"; Runtime = "arm64" }
+          )) {
+            dotnet publish $env:PROJECT `
+              --configuration Release `
+              --runtime "win-$($target.Runtime)" `
+              --self-contained true `
+              -p:Platform=$($target.Architecture) `
+              -p:GenerateAppxPackageOnBuild=true `
+              -p:AppxPackageSigningEnabled=true `
+              -p:PackageCertificateKeyFile="$env:PFX_PATH" `
+              -p:PackageCertificatePassword="$env:PFX_PASSWORD" `
+              -p:PublishReadyToRun=false `
+              -p:PublishTrimmed=false
+
+            $package = Get-ChildItem BlueGuard -Recurse -Filter *.msix |
+              Sort-Object LastWriteTime -Descending |
+              Select-Object -First 1
+
+            Copy-Item $package "artifacts/BlueGuard_${version}_$($target.Runtime).msix"
+          }
+
+      - name: Publish release
+        shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG_NAME: ${{ github.ref_name }}
-          REPO: ${{ github.repository }}
-        run: |
-          shopt -s globstar
-          gh release create "$TAG_NAME" \
-            msix/**/BlueGuard_*.msix \
-            --repo "$REPO" \
-            --title "$TAG_NAME" \
-            --generate-notes \
-            --notes "Unsigned MSIX packages, attached for reference/archival only — Windows requires MSIX packages to be signed before they can be installed, and these are not. BlueGuard is distributed through the Microsoft Store; submit these packages via Partner Center rather than installing directly."
+        run: >
+          gh release create "${{ github.ref_name }}"
+          artifacts/*
+          --title "${{ github.ref_name }}"
+          --generate-notes

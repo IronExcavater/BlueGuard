@@ -3,11 +3,14 @@ param(
     [string] $Manifest = "BlueGuard/Package.appxmanifest",
     [string] $OutputDirectory = ".signing",
     [int] $ValidityYears = 5,
-    [switch] $Force,
-    [switch] $SkipGitHubSecrets
+    [switch] $Force
 )
 
 $ErrorActionPreference = "Stop"
+
+if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
+    throw "GitHub CLI (gh) is required. Install it and run 'gh auth login'."
+}
 
 if (-not (Test-Path $Manifest)) {
     throw "Could not find $Manifest. Run this script from the repository root."
@@ -49,25 +52,12 @@ Export-PfxCertificate -Cert $certificate -FilePath $pfxPath -Password $password 
 Export-Certificate -Cert $certificate -FilePath $cerPath | Out-Null
 
 $base64 = [Convert]::ToBase64String([IO.File]::ReadAllBytes($pfxPath))
+$plainPassword = ConvertFrom-SecureString $password -AsPlainText
 
-$secretsSet = $false
-if (-not $SkipGitHubSecrets -and (Get-Command gh -ErrorAction SilentlyContinue)) {
-    $plainPassword = ConvertFrom-SecureString $password -AsPlainText
-    $base64     | gh secret set WINDOWS_SIGNING_PFX_BASE64   --env release 2>$null
-    $plainPword = $LASTEXITCODE -eq 0
-    $plainPassword | gh secret set WINDOWS_SIGNING_PFX_PASSWORD --env release 2>$null
-    $secretsSet = $plainPword -and $LASTEXITCODE -eq 0
-}
+gh secret set WINDOWS_SIGNING_PFX_BASE64 --env release --body $base64
+if ($LASTEXITCODE -ne 0) { throw "gh secret set WINDOWS_SIGNING_PFX_BASE64 failed" }
 
-if (-not $secretsSet) {
-    $base64 | Set-Clipboard
-}
+gh secret set WINDOWS_SIGNING_PFX_PASSWORD --env release --body $plainPassword
+if ($LASTEXITCODE -ne 0) { throw "gh secret set WINDOWS_SIGNING_PFX_PASSWORD failed" }
 
-Write-Host ""
-Write-Host "$pfxPath (private, gitignored) and $cerPath (public), valid until $($certificate.NotAfter.ToShortDateString())."
-if ($secretsSet) {
-    Write-Host "WINDOWS_SIGNING_PFX_BASE64 and WINDOWS_SIGNING_PFX_PASSWORD set on the 'release' environment via gh."
-} else {
-    Write-Host "Base64 PFX copied to clipboard. Set WINDOWS_SIGNING_PFX_BASE64 (clipboard) and WINDOWS_SIGNING_PFX_PASSWORD manually on the 'release' environment,"
-    Write-Host "or install/authenticate the GitHub CLI (gh auth login) and re-run to have this script set both for you."
-}
+Write-Host "$pfxPath / $cerPath created (valid until $($certificate.NotAfter.ToShortDateString())); release environment secrets updated."
